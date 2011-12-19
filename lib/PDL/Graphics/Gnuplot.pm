@@ -2178,3 +2178,32 @@ sub _logEvent
 }
 
 1;
+
+
+=head1 COMPATIBILITY
+
+Everything should work on all platforms that support Gnuplot and Perl. That
+said, I<ONLY> Debian GNU/Linux has been tested to work. Please report successes
+or failures on other platforms to the author. A transcript of a failed run with
+{log => 1} would be most helpful.
+
+=head1 REPOSITORY
+
+L<https://github.com/dkogan/PDL-Graphics-Gnuplot>
+
+=head1 AUTHOR
+
+Dima Kogan, C<< <dima@secretsauce.net> >> and Craig DeForest, C<< <craig@deforest.org> >>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2011 Dima Kogan and Craig DeForest
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of either: the GNU General Public License as published
+by the Free Software Foundation; or the Perl Artistic License.
+
+See http://dev.perl.org/licenses/ for more information.
+
+=cut
+
