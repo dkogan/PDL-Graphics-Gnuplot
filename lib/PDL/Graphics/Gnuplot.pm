@@ -4123,8 +4123,9 @@ sub _printGnuplotPipe
 
   if( $this->{options}{log} )
   {
+    my $len = length $string;
     _logEvent($this,
-              "Sent to child process (suffix $suffix)==========\n" . $string . "\n=========================" );
+              "Sent to child process (suffix $suffix) $len bytes==========\n" . $string . "\n=========================" );
   }
 }
 
@@ -4284,7 +4285,7 @@ sub _logEvent
   return unless($this->{options}->{log}); # only log when asked.
 
   my $t1 = tv_interval( $this->{t0}, [gettimeofday] );
-  printf STDERR "==== PDL::Graphics::Gnuplot PID $this->{pid} at t=%.4f: $event\n", $t1;
+  printf STDERR "==== PDL::Graphics::Gnuplot PID %d at t=%.4f: %s\n", $this->{pid},$t1,$event;
 }
 
 1;
