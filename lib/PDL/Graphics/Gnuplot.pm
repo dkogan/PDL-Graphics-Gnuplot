@@ -838,9 +838,12 @@ C<locale> is used to control date stamp creation.  See the gnuplot manual.
 C<decimalsign>  accepts a character to use in lieu of a "." for the decimalsign.
 (e.g. in European countries use C<decimalsign=>','>).
 
-=head2 Miscellany: globalwith, timestamp, zero, fontpath, binary
+=head2 Miscellany: globalwith, timestamp, zero, fontpath
 
-If no valid 'with' curve option is given, use this as a default
+C<globalwith> is used as a default plot style if no valid 'with' curve option is present for
+a given curve.
+
+TBD - timestamp, zero, fontpath
 
 =head2 Advanced Gnuplot tweaks: topcmds, extracmds, bottomcmds, binary, dump, log
 
@@ -859,7 +862,7 @@ gnuplot.
 
 Most plotting is done with binary data transfer to Gnuplot; however, due to 
 some bugs in Gnuplot binary handling, certain types of plot data are sent in ASCII.
-In particular, time series data require transmission in ASCII (as of Gnuplot 4.4). 
+In particular, time series and label data require transmission in ASCII (as of Gnuplot 4.4). 
 You can force ASCII transmission of all but image data by explicitly setting the
 C<binary=>0> option.
 
