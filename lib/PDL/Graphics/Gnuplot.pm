@@ -596,15 +596,15 @@ sub plot
       {
         # I got fewer data elements than I expected
 
-        if(!$is3d && $NdataPiddles+1 == $tuplesize)
+        if( $NdataPiddles+1 == $tuplesize )
         {
-          # A 2D plot is one data element short. Fill in a sequential domain
+          # A plot is one data element short. Fill in a sequential domain
           # 0,1,2,...
           unshift @dataPiddles, sequence($dataPiddles[0]->dim(0));
         }
-        elsif($is3d && $NdataPiddles+2 == $tuplesize)
+        elsif( $NdataPiddles+2 == $tuplesize)
         {
-          # a 3D plot is 2 elements short. Use a grid as a domain
+          # a plot is 2 elements short. Use a grid as a domain
           my @dims = $dataPiddles[0]->dims();
           if(@dims < 1)
           { barf "plot() tried to build a 2D implicit domain, but the first data piddle is too small"; }
@@ -1285,8 +1285,8 @@ passed in for the first curve; the second curve inherits those options.
 When a particular tuplesize is specified, PDL::Graphics::Gnuplot will attempt to
 read that many piddles. If there aren't enough piddles available,
 PDL::Graphics::Gnuplot will throw an error, unless an implicit domain can be
-used. This happens if we are I<exactly> 1 piddle short when plotting in 2D or 2
-piddles short when plotting in 3D.
+used. This happens if we are I<exactly> 1 or 2 piddles short (usually when
+making 2D and 3D plots respectively).
 
 When making a simple 2D plot, if exactly 1 dimension is missing,
 PDL::Graphics::Gnuplot will use C<sequence(N)> as the domain. This is why code
@@ -1306,6 +1306,24 @@ Here the only given piddle has dimensions (21,21). This is a 3D plot, so we are
 exactly 2 piddles short. Thus, PDL::Graphics::Gnuplot generates an implicit
 domain, corresponding to a 21-by-21 grid.
 
+Note that this logic doesn't look at whether a 2D or 3D plot is being made. It
+can make sense to have a 2D implicit domain when making 2D plots. For example,
+one can be plotting a color map:
+
+ my $xy = zeros(21,21)->ndcoords - pdl(10,10);
+ my $z = inner($xy, $xy);
+ plot(title  => 'Heat map',
+      tuplesize => 3, with => 'image', $z*2);
+
+This is the same example as in the Synopsis, but plotted without '3d' => 1; the
+output is very similar.
+
+Also note that the C<tuplesize> curve option is independent of implicit domains.
+This option specifies not how many data piddles we have, but how many values
+represent each data point. For example, if we want a 2D plot with varying colors
+plotted with an implicit domain, set C<tuplesize> to 3 as before, but pass in
+only 2 piddles (y, color).
+
 One thing to watch out for it to make sure PDL::Graphics::Gnuplot doesn't get
 confused about when to use implicit domains. For example, C<plot($a,$b)> is
 interpreted as plotting $b vs $a, I<not> $a vs an implicit domain and $b vs an
@@ -1313,12 +1331,6 @@ implicit domain. If 2 implicit plots are desired, add a separator:
 C<plot($a,{},$b)>. Here C<{}> is an empty curve options hash. If C<$a> and C<$b>
 have the same dimensions, one can also do C<plot($a-E<gt>cat($b))>, taking advantage
 of PDL threading.
-
-Note that the C<tuplesize> curve option is independent of implicit domains. This
-option specifies not how many data piddles we have, but how many values
-represent each data point. For example, if we want a 2D plot with varying colors
-plotted with an implicit domain, set C<tuplesize> to 3 as before, but pass in
-only 2 piddles (y, color).
 
 =head2 Interactivity
 

@@ -137,6 +137,16 @@ plot3d (binary => 1,
          with => 'image', inner($xy, $xy));
 }
 
+# same, but as a 2d plot, with a curve drawn on top for good measure
+{
+  my $xy = zeros(21,21)->ndcoords - pdl(10,10);
+  my $x = zeros(100)->xlinvals(0, 20);
+  plot(title  => 'Paraboloid heat map, 2D',
+       xmin => 0, xmax => 20, ymin => 0, ymax => 20,
+       tuplesize => 3, with => 'image', inner($xy, $xy),
+       tuplesize => 2, with => 'lines', $x, 20*cos($x/20 * 3.14159/2) );
+}
+
 ################################
 # testing some error detection
 ################################
