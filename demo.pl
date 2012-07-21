@@ -133,7 +133,7 @@ plot3d (binary => 1,
   my $xy = zeros(21,21)->ndcoords - pdl(10,10);
   plot3d(binary => 1,
          title  => 'Paraboloid heat map',
-         extracmds => 'set view 0,0',
+         extracmds => 'set view map',
          with => 'image', inner($xy, $xy));
 }
 

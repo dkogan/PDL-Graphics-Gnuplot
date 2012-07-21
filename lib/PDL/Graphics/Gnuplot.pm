@@ -1187,8 +1187,8 @@ PDL::Graphics::Gnuplot - Gnuplot-based plotter for PDL
  my $xy = zeros(21,21)->ndcoords - pdl(10,10);
  my $z = inner($xy, $xy);
  plot(title  => 'Heat map', '3d' => 1,
-      extracmds => 'set view 0,0',
-      with => 'image', tuplesize => 3, $z*2);
+      extracmds => 'set view map',
+      with => 'image', $z*2);
 
  my $pi    = 3.14159;
  my $theta = zeros(200)->xlinvals(0, 6*$pi);
@@ -1646,7 +1646,7 @@ Complicated 3D plot with fancy styling:
 
 3D plots can be plotted as a heat map. As of Gnuplot 4.4.0, this doesn't work in binary.
 
-  plot3d( extracmds => 'set view 0,0',
+  plot3d( extracmds => 'set view map',
           with => 'image',
           $xy );
 
