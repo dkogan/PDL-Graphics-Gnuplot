@@ -414,20 +414,13 @@ sub plot
       my @optionCmds =
         map { optioncmd($_, $plotOptions->{globalwith}) } @{$chunk->{options}};
 
-      # when doing fancy things, gnuplot can get confused if I don't explicitly
-      # tell it the tuplesize. It has its own implicit-tuples logic that I don't
-      # want kicking in. As an example, the following simple plot doesn't work
-      # in binary without telling it 'using':
-      #   plot3d(binary => 1, with => 'image', sequence(5,5));
-      my $using = ' using ' . join(':', 1..$chunk->{tuplesize});
-
       if( $plotOptions->{binary} )
       {
         # I get 2 formats: one real, and another to test the plot cmd, in case it
         # fails. The test command is the same, but with a minimal point count. I
         # also get the number of bytes in a single data point here
         my ($format, $formatMinimal) = binaryFormatcmd($chunk);
-        my $Ntestbytes_here          = getNbytes_tuple($chunk);
+        my $Ntestbytes_here          = getTestDataLen($chunk);
 
         push @plotChunkCmd,        map { "'-' $format $_"     }    @optionCmds;
         push @plotChunkCmdMinimal, map { "'-' $formatMinimal $_" } @optionCmds;
@@ -444,6 +437,11 @@ sub plot
       }
       else
       {
+        # for some things gnuplot has its own implicit-tuples logic; I want to
+        # suppress this, so I explicitly tell gnuplot to use all the columns we
+        # have
+        my $using = ' using ' . join(':', 1..$chunk->{tuplesize});
+
         # I'm using ascii to talk to gnuplot, so the minimal and "normal" plot
         # commands are the same (point count is not in the plot command)
         my $matrix = $chunk->{matrix} ? 'matrix' : '';
@@ -506,12 +504,28 @@ sub plot
       # fails
       my $chunk = shift;
 
-      my $tuplesize  = $chunk->{tuplesize};
-      my $recordSize = $chunk->{data}[0]->dim(0);
+      my $tuplesize = $chunk->{tuplesize};
 
-      my $format = "binary record=$recordSize format=\"";
-      $format .= '%double' x $tuplesize;
-      $format .= '"';
+      my $format;
+      if( $chunk->{matrix} )
+      {
+        $format = 'binary array=(' . $chunk->{data}[0]->dim(0) . ',' . $chunk->{data}[0]->dim(1) . ')';
+        $format .= ' transpose';
+        $format .= ' format="' . ('%double' x ($tuplesize-2)) . '"';
+      }
+      else
+      {
+        $format = 'binary record=' . $chunk->{data}[0]->dim(0);
+        $format .= ' format="' . ('%double' x $tuplesize) . '"';
+      }
+
+      # when doing fancy things, gnuplot can get confused if I don't explicitly
+      # tell it the tuplesize. It has its own implicit-tuples logic that I don't
+      # want kicking in. As an example, the following simple plot doesn't work
+      # in binary without telling it 'using':
+      #   plot3d(binary => 1, with => 'image', sequence(5,5));
+      my $using_Ncolumns = $chunk->{matrix} ? ($tuplesize-2) : $tuplesize;
+      my $using = ' using ' . join(':', 1..$using_Ncolumns);
 
       # When plotting in binary, gnuplot gets confused if I don't explicitly
       # tell it the tuplesize. It's got its own implicit-tuples logic that I
@@ -519,20 +533,23 @@ sub plot
       # work in binary without this extra line:
       # plot3d(binary => 1,
       #        with => 'image', sequence(5,5));
-      $format .= ' using ' . join(':', 1..$tuplesize);
+      $format .= " $using";
 
       # to test the plot I plot a single record
       my $formatTest = $format;
       $formatTest =~ s/record=\d+/record=1/;
+      $formatTest =~ s/array=\(\d+,\d+\)/array=(2,2)/;
 
       return ($format, $formatTest);
     }
 
-    sub getNbytes_tuple
+    sub getTestDataLen
     {
       my $chunk = shift;
+
       # assuming sizeof(double)==8
-      return 8 * $chunk->{tuplesize};
+      return 8 * $chunk->{tuplesize} unless $chunk->{matrix};
+      return 8 * 2*2*($chunk->{tuplesize}-2);
     }
   }
 
@@ -1027,7 +1044,14 @@ sub _wcols_gnuplot
     # this is not efficient right now. I should do this in C so that I don't
     # have to physical-ize the piddles and so that I can keep the original type
     # instead of converting to double
-    _printGnuplotPipe( $this, ${ cat(@_)->transpose->double->get_dataref } );
+    if( $ismatrix )
+    {
+      _printGnuplotPipe( $this, ${ cat(@_)->transpose->mv(-1,0)->double->get_dataref } );
+    }
+    else
+    {
+      _printGnuplotPipe( $this, ${ cat(@_)->transpose->double->get_dataref } );
+    }
   }
   else
   {
