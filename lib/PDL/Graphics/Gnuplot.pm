@@ -105,7 +105,7 @@ sub new
 
     my $pid =
       open3($in, undef, $err, 'gnuplot', @options)
-        or die "Couldn't run the 'gnuplot' backend";
+        or barf "Couldn't run the 'gnuplot' backend";
 
     return {in          => $in,
             err         => $err,
@@ -595,7 +595,7 @@ sub plot
 
             if( !@bad_plot_options )
             {
-              barf "plot() got some unknown curve options: (@badKeys)";
+              barf "plot() got some unknown curve options: (@badKeys)\n";
             }
             else
             {
@@ -881,14 +881,16 @@ sub plot
     _printGnuplotPipe( $this, $testplotcmd . "\n" );
     _printGnuplotPipe( $this, $testplotdata );
 
-    my $checkpointMessage = _checkpoint($this, 'ignore_known_test_failures');
-
+    my ($checkpointMessage, $warnings) = _checkpoint($this, 'ignore_known_test_failures');
     if( $checkpointMessage )
     {
       # There's a checkpoint message. I explicitly ignored and threw away all
       # errors that are allowed to occur during a test. Anything leftover
       # implies a plot failure.
-      barf "Gnuplot error: \"\n$checkpointMessage\n\" while sending plotcmd \"$testplotcmd\"";
+      my $barfmsg = "Gnuplot error: '\n$checkpointMessage\n' while sending plotcmd '$testplotcmd'\n";
+      if( @$warnings )
+      { $barfmsg .= "Warnings:\n" . join("\n", @$warnings); }
+      barf $barfmsg;
     }
 
     _printGnuplotPipe( $this, "set terminal pop\n" );
@@ -959,13 +961,13 @@ EOM
     $fromerr = $1;
 
     my $warningre = qr{^.*(?:warning:\s*(.*?)\s*$)\n?}mi;
+    my @warnings = $fromerr =~ m/$warningre/gm;
 
     if(defined $flags && $flags =~ /printwarnings/)
     {
-      while($fromerr =~ m/$warningre/gm)
-      { print STDERR "Gnuplot warning: $1\n"; }
+      for my $w(@warnings)
+      { print STDERR "Gnuplot warning: $w\n"; }
     }
-
 
     # I've now read all the data up-to the checkpoint. Strip out all the warnings
     $fromerr =~ s/$warningre//gm;
@@ -1009,7 +1011,7 @@ EOM
 
     $fromerr =~ s/^\s*(.*?)\s*/$1/;
 
-    return $fromerr;
+    return ($fromerr, \@warnings);
   }
 }
 
@@ -1113,9 +1115,13 @@ sub _safelyWriteToPipe
 
     _printGnuplotPipe( $this, "$line\n" );
 
-    if( my $errorMessage = _checkpoint($this, 'printwarnings') )
+    my ($errorMessage, $warnings) = _checkpoint($this, 'printwarnings');
+    if( $errorMessage )
     {
-      barf "Gnuplot error: \"\n$errorMessage\n\" while sending line \"$line\"";
+      my $barfmsg = "Gnuplot error: '\n$errorMessage\n' while sending line '$line'\n";
+      if( @$warnings )
+      { $barfmsg .= "Warnings:\n" . join("\n", @$warnings); }
+      barf $barfmsg;
     }
   }
 
