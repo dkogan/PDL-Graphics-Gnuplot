@@ -17,7 +17,7 @@ our @EXPORT_OK = qw(plot plot3d plotlines plotpoints);
 our $VERSION = 0.05;
 
 # when testing plots with ASCII i/o, this is the unit of test data
-my $testdataunit_ascii = "10 ";
+my $testdataunit_ascii = 10;
 
 # if I call plot() as a global function I create a new PDL::Graphics::Gnuplot
 # object. I would like the gnuplot process to persist to keep the plot
@@ -333,7 +333,7 @@ sub plot
 
   # I split my data-to-plot into similarly-styled chunks
   # pieces of data we're plotting. Each chunk has a similar style
-  my ($chunks, $Ncurves) = parseArgs($plotOptions->{'3d'}, @_);
+  my ($chunks, $Ncurves) = parseArgs($plotOptions, @_);
 
 
   if( scalar @$chunks == 0)
@@ -371,7 +371,8 @@ sub plot
     my @data = map {$_->ndims == 0 ? $_->dummy(0) : $_} @{$chunk->{data}};
 
     my $tuplesize = scalar @data;
-    eval( "_writedata_$tuplesize" . '(@data, $this, $plotOptions->{binary})');
+    my $matrix = $chunk->{matrix} ? 'matrix' : '';
+    eval( "_writedata_$matrix$tuplesize" . '(@data, $this, $chunk->{matrix}, $plotOptions->{binary})');
   }
 
   # read and report any warnings that happened during the plot
@@ -413,6 +414,13 @@ sub plot
       my @optionCmds =
         map { optioncmd($_, $plotOptions->{globalwith}) } @{$chunk->{options}};
 
+      # when doing fancy things, gnuplot can get confused if I don't explicitly
+      # tell it the tuplesize. It has its own implicit-tuples logic that I don't
+      # want kicking in. As an example, the following simple plot doesn't work
+      # in binary without telling it 'using':
+      #   plot3d(binary => 1, with => 'image', sequence(5,5));
+      my $using = ' using ' . join(':', 1..$chunk->{tuplesize});
+
       if( $plotOptions->{binary} )
       {
         # I get 2 formats: one real, and another to test the plot cmd, in case it
@@ -438,9 +446,23 @@ sub plot
       {
         # I'm using ascii to talk to gnuplot, so the minimal and "normal" plot
         # commands are the same (point count is not in the plot command)
-        push @plotChunkCmd, map { "'-' $_" } @optionCmds;
+        my $matrix = $chunk->{matrix} ? 'matrix' : '';
+        push @plotChunkCmd, map { "'-' $matrix $using $_" } @optionCmds;
 
-        my $testData_curve = $testdataunit_ascii x $chunk->{tuplesize} . "\n" . "e\n";
+        my $testData_curve;
+        if( $chunk->{matrix} )
+        {
+          my $testmatrix =
+            "$testdataunit_ascii $testdataunit_ascii\n" .
+            "$testdataunit_ascii $testdataunit_ascii\n\n" .
+            "e\n";
+          $testData_curve = $testmatrix x ($chunk->{tuplesize} - 2);
+        }
+        else
+        {
+          $testData_curve = join(' ', ($testdataunit_ascii) x $chunk->{tuplesize}) . "\n" . "e\n";
+        }
+
         $testData .= $testData_curve x scalar @optionCmds;
       }
     }
@@ -522,8 +544,8 @@ sub plot
     # OPTIONS ARE ALWAYS CUMULATIVELY DEFINED ON TOP OF THE PREVIOUS SET OF
     # OPTIONS (except the legend)
     # The data arguments are one-argument-per-tuple-element.
-    my $is3d = shift;
-    my @args = @_;
+    my $plotOptions = shift;
+    my @args        = @_;
 
     # options are cumulative except the legend (don't want multiple plots named
     # the same). This is a hashref that contains the accumulator
@@ -563,7 +585,7 @@ sub plot
               barf
                 "plot() got some unknown curve options: (@badKeys)\n" .
                 "Of these, the following are valid PLOT options: @bad_plot_options\n" .
-                "All plot options must be given before all curve options";
+                "All plot options must be given before all curve options\n";
             }
           }
         }
@@ -579,7 +601,7 @@ sub plot
       my $nextOptionIdx = first {!ref $args[$_] || ref $args[$_] ne 'PDL'} $argIndex..$#args;
       $nextOptionIdx = @args unless defined $nextOptionIdx;
 
-      my $tuplesize    = getTupleSize($is3d, $chunk{options});
+      my $tuplesize    = getTupleSize($plotOptions->{'3d'}, $chunk{options});
       my $NdataPiddles = $nextOptionIdx - $argIndex;
 
       # If I have more data piddles that I need, use only what I need now, and
@@ -604,20 +626,16 @@ sub plot
         }
         elsif( $NdataPiddles+2 == $tuplesize)
         {
-          # a plot is 2 elements short. Use a grid as a domain
-          my @dims = $dataPiddles[0]->dims();
-          if(@dims < 1)
-          { barf "plot() tried to build a 2D implicit domain, but the first data piddle is too small"; }
-
-          # grab the first 2 dimensions to build the x-y domain
-          splice @dims, 2;
-          my $x = zeros(@dims)->xvals->clump(2);
-          my $y = zeros(@dims)->yvals->clump(2);
-          unshift @dataPiddles, $x, $y;
-
-          # un-grid the data-to plot to match the new domain
-          foreach my $data(@dataPiddles)
-          { $data = $data->clump(2); }
+          # a plot is 2 elements short. Use a grid as a domain. I simply set the
+          # 'matrix' flag and have gnuplot deal with it later
+          if( !$plotOptions->{binary} && $tuplesize > 3 )
+          {
+            barf
+              "Can't make more than 3-dimensional plots on a implicit 2D domain\n" .
+              "when sending ASCII data. I don't think gnuplot supports this. Use binary data\n" .
+              "or explicitly specify the domain\n";
+          }
+          $chunk{matrix} = 1;
         }
         else
         { barf "plot() needed $tuplesize data piddles, but only got $NdataPiddles"; }
@@ -707,16 +725,30 @@ sub plot
 
       # Make sure the domain and ranges describe the same number of data points
       my $data = $chunk->{data};
-      foreach (1..$#$data)
+      foreach (0..$#$data)
       {
+        if( $chunk->{matrix} && $data->[$_]->ndims < 2 )
+        {
+          barf "Tried to plot against an implicit 2D domain, but was given less than 2D data";
+        }
+        next if $_ == 0;
+
         my $dim0 = $data->[$_  ]->dim(0);
         my $dim1 = $data->[$_-1]->dim(0);
         if( $dim0 != $dim1 )
         { barf "plot() was given mismatched tuples to plot. $dim0 vs $dim1"; }
+
+        if( $chunk->{matrix} )
+        {
+          my $dim0 = $data->[$_  ]->dim(1);
+          my $dim1 = $data->[$_-1]->dim(1);
+          if( $dim0 != $dim1 )
+          { barf "plot() was given mismatched tuples to plot. $dim0 vs $dim1"; }
+        }
       }
 
       # I now make sure I have exactly one set of curve options per curve
-      my $Ncurves = countCurves($data);
+      my $Ncurves = countCurves($data, $chunk->{matrix});
       my $Noptions = scalar @{$chunk->{options}};
 
       if($Noptions > $Ncurves)
@@ -738,15 +770,18 @@ sub plot
       {
         # compute how many curves have been passed in, assuming things thread
 
-        my $data = shift;
+        my $data     = shift;
+        my $ismatrix = shift;
 
         my $N = 1;
 
+        my $NbaseDims = $ismatrix ? 2 : 1;
+
         # I need to look through every dimension to check that things can thread
-        # and then to compute how many threads there will be. I skip the first
-        # dimension since that's the data points, NOT separate curves
+        # and then to compute how many threads there will be. I skip the base
+        # dimensions since that's the data points, NOT separate curves
         my $maxNdims = List::Util::max map {$_->ndims} @$data;
-        foreach my $dimidx (1..$maxNdims-1)
+        foreach my $dimidx ($NbaseDims..$maxNdims-1)
         {
           # in a particular dimension, there can be at most 1 non-1 unique
           # dimension. Otherwise threading won't work.
@@ -984,6 +1019,7 @@ sub plotpoints
 sub _wcols_gnuplot
 {
   my $isbinary = pop @_;
+  my $ismatrix = pop @_;
   my $this     = pop @_;
 
   if( $isbinary)
@@ -995,7 +1031,15 @@ sub _wcols_gnuplot
   }
   else
   {
-    _wcolsGnuplotPipe( $this, @_ );
+    if( $ismatrix )
+    {
+      _wcolsGnuplotPipe( $this, map {$_->transpose} @_ );
+      _printGnuplotPipe( $this, "\n" );
+    }
+    else
+    {
+      _wcolsGnuplotPipe( $this, @_ );
+    }
     _printGnuplotPipe( $this, "e\n" );
   }
 };
@@ -1095,13 +1139,20 @@ sub _safelyWriteToPipe
 }
 
 # I generate a bunch of PDL definitions such as
-# _writedata_2(x1(n), x2(n)), NOtherPars => 2
-# The last 2 arguments are (pipe, isbinary)
+# _writedata_2(x1(n), x2(n)), NOtherPars => 3
+# The last 3 arguments are (pipe, ismatrix, isbinary)
 # 20 tuples per point sounds like plenty. The most complicated plots Gnuplot can
 # handle probably max out at 5 or so
 for my $n (2..20)
 {
-  my $def = "_writedata_$n(" . join( ';', map {"x$_(n)"} 1..$n) . "), NOtherPars => 2";
+  my $def = "_writedata_$n(" . join( ';', map {"x$_(n)"} 1..$n) . "), NOtherPars => 3";
+  thread_define $def, over \&_wcols_gnuplot;
+}
+# similar for gnuplot 'matrix' plots. Defs like
+# _writedata_matrix_2(x1(n,m), x2(n,m)), NOtherPars => 3
+for my $n (1..20)
+{
+  my $def = "_writedata_matrix$n(" . join( ';', map {"x$_(n,m)"} 1..$n) . "), NOtherPars => 3";
   thread_define $def, over \&_wcols_gnuplot;
 }
 
