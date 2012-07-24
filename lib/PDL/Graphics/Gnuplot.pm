@@ -76,6 +76,9 @@ sub new
     barf "PDL::Graphics::Gnuplot->new() got option(s) that were NOT a plot option: (@badKeys)";
   }
 
+  # binary plotting is the default
+  $plotoptions{binary} = 1 unless exists $plotoptions{binary};
+
   my $pipes  = startGnuplot( $plotoptions{dump} );
 
   my $this = {%$pipes, # %$this is built on top of %$pipes
@@ -1510,22 +1513,22 @@ string of an arrayref of different commands
 Used for debugging. If true, writes out the gnuplot commands to STDOUT
 I<instead> of writing to a gnuplot process. Useful to see what commands would be
 sent to gnuplot. This is a dry run. Note that this dump will contain binary
-data, if the 'binary' option is given (see below)
+data, if the binary plotting is enabled (see below)
 
 =item log
 
 Used for debugging. If true, writes out the gnuplot commands to STDERR I<in
 addition> to writing to a gnuplot process. This is I<not> a dry run: data is
 sent to gnuplot I<and> to the log. Useful for debugging I/O issues. Note that
-this log will contain binary data, if the 'binary' option is given (see below)
+this log will contain binary data, if binary plotting is enabled (see below)
 
 =item binary
 
-If given, binary data is passed to gnuplot instead of ASCII data. Binary is much
+If set, binary data is passed to gnuplot instead of ASCII data. Binary is much
 more efficient (and thus faster). Binary input works for most plots, but not for
-all of them. An example where binary plotting doesn't work is 'with labels'.
-ASCII plotting is generally better tested so ASCII is the default. This will
-change at some point in the near future
+all of them. An example where binary plotting doesn't work is 'with labels'. The
+efficiency gains are well worth it most of the time, so binary is the default.
+Set C<binary =E<gt> 0> to go back to ASCII.
 
 =back
 
@@ -1737,7 +1740,7 @@ Complicated 3D plot with fancy styling:
          # pointsize, color
          0.5 + abs(cos($theta)), sin(2*$theta) );
 
-3D plots can be plotted as a heat map. As of Gnuplot 4.4.0, this doesn't work in binary.
+3D plots can be plotted as a heat map:
 
   plot3d( extracmds => 'set view map',
           with => 'image',
