@@ -722,7 +722,7 @@ sub plot
 
             # this is a scalar. I interpret a pair as key/value
             if ($optionArgIdx+1 == @optionsArgs)
-            { barf "plot() got a lone scalar argument $optionArg, where a key/value was expected"; }
+            { barf "plot() got a lone scalar argument '$optionArg', where a key/value was expected"; }
 
             $options->{$optionArg} = $optionsArgs[++$optionArgIdx];
             $optionArgIdx++;
