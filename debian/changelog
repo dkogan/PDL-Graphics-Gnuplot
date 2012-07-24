@@ -1,3 +1,11 @@
+libpdl-graphics-gnuplot-perl (0.06) unstable; urgency=low
+
+  * 'matrix' plots now handled by gnuplot, not by PDL. This makes things
+    much more efficient, and allows fancier features like contours to work
+  * binary communication by default
+
+ -- Dima Kogan <dima@secretsauce.net>  Tue, 24 Jul 2012 01:25:25 -0700
+
 libpdl-graphics-gnuplot-perl (0.05) unstable; urgency=low
 
   * Added another acceptable error during plot command testing.
