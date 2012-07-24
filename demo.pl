@@ -147,6 +147,78 @@ plot3d (binary => 1,
        tuplesize => 2, with => 'lines', $x, 20*cos($x/20 * 3.14159/2) );
 }
 
+
+
+################################
+# 2D implicit domain tests
+################################
+{
+  my $xy = zeros(21,21)->ndcoords - pdl(10,10);
+  my $x = $xy((0),:,:);
+  my $z = sqrt(inner($xy, $xy));
+
+  $xy = $xy(2:12,:);
+  $x  = $x(2:12,:);
+  $z  = $z(2:12,:);
+
+  # single 3d matrix curve
+  plot(title  => 'Single 3D matrix plot. Binary.', binary => 1,
+       square => 1,
+       tuplesize => 3, with => 'points palette pt 7',
+       $z);
+
+  # 4d matrix curve
+  plot(title  => '4D matrix plot. Binary.', binary => 1,
+       square => 1,
+       tuplesize => 4, with => 'points palette ps variable pt 7',
+       $z, $x);
+
+  # 2 3d matrix curves
+  plot(title  => '2 3D matrix plots. Binary.', binary => 1,
+       square => 1,
+       {tuplesize => 3, with => 'points palette pt 7'},
+       {with => 'points ps variable pt 6'},
+       $x->cat($z));
+
+  # # Gnuplot doesn't support this
+  # # 4d matrix curve
+  # plot(title  => '4D matrix plot. ASCII.', binary => 0,
+  #      square => 1,
+  #      tuplesize => 4, with => 'points palette ps variable pt 7',
+  #      $z, $x);
+
+  # 2 3d matrix curves
+  plot(title  => '2 3D matrix plots. ASCII.', binary => 0,
+       square => 1,
+       {tuplesize => 3, with => 'points palette pt 7'},
+       {with => 'points ps variable pt 6'},
+       $x->cat($z));
+}
+
+###################################
+# fancy contours just because I can
+###################################
+{
+  my $x = zeros(61,61)->xvals - 30;
+  my $y = zeros(61,61)->yvals - 30;
+  my $z = sin($x / 4) * $y;
+
+  # single 3d matrix curve
+  plot('3d' => 1,
+       title  => 'matrix plot with contours',
+       extracmds => [ 'set contours base',
+                      'set cntrparam bspline',
+                      'set cntrparam levels 15',
+                      'unset grid',
+                      'unset surface',
+                      'set view 0,0'],
+       square => 1,
+       tuplesize => 3, with => 'image', $z,
+       tuplesize => 3, with => 'lines', $z
+      );
+}
+
+
 ################################
 # testing some error detection
 ################################
