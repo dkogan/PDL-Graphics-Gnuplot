@@ -1681,9 +1681,6 @@ from the center; this is how Gnuplot does it)
 
 =head3 More multi-value styles
 
-In Gnuplot 4.4.0, these generally only work in ASCII mode. This is a bug in
-Gnuplot that will hopefully get resolved.
-
 Plotting with variable-size circles (size given in plot units, requires Gnuplot >= 4.4)
 
   plot(with => 'circles', tuplesize => 3,
@@ -1700,8 +1697,8 @@ Color-coded points
   plot(with => 'points palette', tuplesize => 3,
        $x, $y, $colors);
 
-Variable-size AND color-coded circles. A Gnuplot (4.4.0) bug make it necessary to
-specify the color range here
+Variable-size AND color-coded circles. A Gnuplot (4.4.0) quirk makes it
+necessary to specify the color range here
 
   plot(cbmin => $mincolor, cbmax => $maxcolor,
        with => 'circles palette', tuplesize => 4,
