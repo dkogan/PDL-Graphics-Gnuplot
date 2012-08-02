@@ -24,8 +24,8 @@ PDL::Graphics::Gnuplot - Gnuplot-based plotter for PDL
  my $xy = zeros(21,21)->ndcoords - pdl(10,10);
  my $z = inner($xy, $xy);
  plot(title  => 'Heat map', '3d' => 1,
-      extracmds => 'set view 0,0',
-      with => 'image', tuplesize => 3, $z*2);
+      extracmds => 'set view map',
+      with => 'image', $z*2);
 
  my $pi    = 3.14159;
  my $theta = zeros(200)->xlinvals(0, 6*$pi);
@@ -122,8 +122,8 @@ passed in for the first curve; the second curve inherits those options.
 When a particular tuplesize is specified, PDL::Graphics::Gnuplot will attempt to
 read that many piddles. If there aren't enough piddles available,
 PDL::Graphics::Gnuplot will throw an error, unless an implicit domain can be
-used. This happens if we are I<exactly> 1 piddle short when plotting in 2D or 2
-piddles short when plotting in 3D.
+used. This happens if we are I<exactly> 1 or 2 piddles short (usually when
+making 2D and 3D plots respectively).
 
 When making a simple 2D plot, if exactly 1 dimension is missing,
 PDL::Graphics::Gnuplot will use C<sequence(N)> as the domain. This is why code
@@ -143,6 +143,24 @@ Here the only given piddle has dimensions (21,21). This is a 3D plot, so we are
 exactly 2 piddles short. Thus, PDL::Graphics::Gnuplot generates an implicit
 domain, corresponding to a 21-by-21 grid.
 
+Note that this logic doesn't look at whether a 2D or 3D plot is being made. It
+can make sense to have a 2D implicit domain when making 2D plots. For example,
+one can be plotting a color map:
+
+ my $xy = zeros(21,21)->ndcoords - pdl(10,10);
+ my $z = inner($xy, $xy);
+ plot(title  => 'Heat map',
+      tuplesize => 3, with => 'image', $z*2);
+
+This is the same example as in the Synopsis, but plotted without '3d' => 1; the
+output is very similar.
+
+Also note that the C<tuplesize> curve option is independent of implicit domains.
+This option specifies not how many data piddles we have, but how many values
+represent each data point. For example, if we want a 2D plot with varying colors
+plotted with an implicit domain, set C<tuplesize> to 3 as before, but pass in
+only 2 piddles (y, color).
+
 One thing to watch out for it to make sure PDL::Graphics::Gnuplot doesn't get
 confused about when to use implicit domains. For example, C<plot($a,$b)> is
 interpreted as plotting $b vs $a, I<not> $a vs an implicit domain and $b vs an
@@ -150,12 +168,6 @@ implicit domain. If 2 implicit plots are desired, add a separator:
 C<plot($a,{},$b)>. Here C<{}> is an empty curve options hash. If C<$a> and C<$b>
 have the same dimensions, one can also do C<plot($a-E<gt>cat($b))>, taking advantage
 of PDL threading.
-
-Note that the C<tuplesize> curve option is independent of implicit domains. This
-option specifies not how many data piddles we have, but how many values
-represent each data point. For example, if we want a 2D plot with varying colors
-plotted with an implicit domain, set C<tuplesize> to 3 as before, but pass in
-only 2 piddles (y, color).
 
 =head2 Interactivity
 
@@ -254,22 +266,22 @@ string of an arrayref of different commands
 Used for debugging. If true, writes out the gnuplot commands to STDOUT
 I<instead> of writing to a gnuplot process. Useful to see what commands would be
 sent to gnuplot. This is a dry run. Note that this dump will contain binary
-data, if the 'binary' option is given (see below)
+data, if the binary plotting is enabled (see below)
 
 =item log
 
 Used for debugging. If true, writes out the gnuplot commands to STDERR I<in
 addition> to writing to a gnuplot process. This is I<not> a dry run: data is
 sent to gnuplot I<and> to the log. Useful for debugging I/O issues. Note that
-this log will contain binary data, if the 'binary' option is given (see below)
+this log will contain binary data, if binary plotting is enabled (see below)
 
 =item binary
 
-If given, binary data is passed to gnuplot instead of ASCII data. Binary is much
+If set, binary data is passed to gnuplot instead of ASCII data. Binary is much
 more efficient (and thus faster). Binary input works for most plots, but not for
-all of them. An example where binary plotting doesn't work is 'with labels'.
-ASCII plotting is generally better tested so ASCII is the default. This will
-change at some point in the near future
+all of them. An example where binary plotting doesn't work is 'with labels'. The
+efficiency gains are well worth it most of the time, so binary is the default.
+Set C<binary =E<gt> 0> to go back to ASCII.
 
 =back
 
@@ -422,9 +434,6 @@ from the center; this is how Gnuplot does it)
 
 =head3 More multi-value styles
 
-In Gnuplot 4.4.0, these generally only work in ASCII mode. This is a bug in
-Gnuplot that will hopefully get resolved.
-
 Plotting with variable-size circles (size given in plot units, requires Gnuplot >= 4.4)
 
   plot(with => 'circles', tuplesize => 3,
@@ -441,8 +450,8 @@ Color-coded points
   plot(with => 'points palette', tuplesize => 3,
        $x, $y, $colors);
 
-Variable-size AND color-coded circles. A Gnuplot (4.4.0) bug make it necessary to
-specify the color range here
+Variable-size AND color-coded circles. A Gnuplot (4.4.0) quirk makes it
+necessary to specify the color range here
 
   plot(cbmin => $mincolor, cbmax => $maxcolor,
        with => 'circles palette', tuplesize => 4,
@@ -481,9 +490,9 @@ Complicated 3D plot with fancy styling:
          # pointsize, color
          0.5 + abs(cos($theta)), sin(2*$theta) );
 
-3D plots can be plotted as a heat map. As of Gnuplot 4.4.0, this doesn't work in binary.
+3D plots can be plotted as a heat map:
 
-  plot3d( extracmds => 'set view 0,0',
+  plot3d( extracmds => 'set view map',
           with => 'image',
           $xy );
 
@@ -510,10 +519,9 @@ fonts and sizes can be changed.
 
 =head1 COMPATIBILITY
 
-Everything should work on all platforms that support Gnuplot and Perl. That
-said, I<ONLY> Debian GNU/Linux has been tested to work. Please report successes
-or failures on other platforms to the author. A transcript of a failed run with
-{log => 1} would be most helpful.
+Everything should work on all platforms that support Gnuplot and Perl. Various
+flavors of GNU/Linux have been tested to work. Windows is known to not work at
+this time, but patches to change this are welcome.
 
 =head1 REPOSITORY
 
@@ -525,7 +533,7 @@ Dima Kogan, C<< <dima@secretsauce.net> >>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2011 Dima Kogan.
+Copyright 2011, 2012 Dima Kogan.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
