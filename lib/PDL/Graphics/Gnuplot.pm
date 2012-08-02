@@ -1766,10 +1766,9 @@ fonts and sizes can be changed.
 
 =head1 COMPATIBILITY
 
-Everything should work on all platforms that support Gnuplot and Perl. That
-said, I<ONLY> Debian GNU/Linux has been tested to work. Please report successes
-or failures on other platforms to the author. A transcript of a failed run with
-{log => 1} would be most helpful.
+Everything should work on all platforms that support Gnuplot and Perl. Various
+flavors of GNU/Linux have been tested to work. Windows is known to not work at
+this time, but patches to change this are welcome.
 
 =head1 REPOSITORY
 
