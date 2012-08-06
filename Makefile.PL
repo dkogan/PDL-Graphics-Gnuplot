@@ -18,7 +18,7 @@ sub parseversion
   return $version;
 }
 
-# make sure we can run gnuplot
+# make sure we can run gnuplot before continuing
 {
   unless( open( my $pipe, '|-', 'gnuplot' ))
   {
@@ -26,12 +26,15 @@ sub parseversion
 
 Error: "$!"
 
-I tried to execute 'gnuplot' and it didn't work. Since this module is an
-interface to Gnuplot, it must be installed for the module to be useful. I'll go
-ahead and build PDL::Graphics::Gnuplot, but it'll be useless without gnuplot.
-THE UNIT TESTS WILL FAIL until gnuplot is installed. Use your package manager,
-or download the source from http://www.gnuplot.info
+I tried to execute 'gnuplot' and it didn't work. Since this module is an is an
+interface to Gnuplot, it must be installed for the module to be useful. Install
+Gnuplot to continue. Use your package manager, or download the source from
+http://www.gnuplot.info
 EOM
+
+    # This exit is mostly for cpan testers to not tell me that my module is
+    # broken
+    exit 0;
  }
 }
 
