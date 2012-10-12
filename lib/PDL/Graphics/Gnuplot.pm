@@ -1,3 +1,17 @@
+=head1 NOTICE
+
+Note that this is the original implementation of PDL::Graphics::Gnuplot by Dima
+Kogan. It is here for reference only. Main development has been taken over by
+Craig Deforest; the new git tree is at
+L<https://github.com/drzowie/PDL-Graphics-Gnuplot>. Please submit bug reports
+and patches there.
+
+=cut
+
+
+
+
+
 package PDL::Graphics::Gnuplot;
 
 use strict;
